@@ -1,5 +1,3 @@
-use std::collections::BinaryHeap;
-use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::{self, BufRead};
@@ -27,11 +25,19 @@ fn main() {
     eprintln!("Time: {:.6} seconds", duration.as_secs_f64());
 }
 
+fn is_safe(nums: &[i32]) -> bool {
+    let all_increasing = nums.windows(2).all(|w| w[0] < w[1]);
+    let all_decreasing = nums.windows(2).all(|w| w[0] > w[1]);
+    let all_diff_one_to_three = nums
+        .windows(2)
+        .all(|w| (w[1] - w[0]).abs() >= 1 && (w[1] - w[0]).abs() <= 3);
+    (all_increasing || all_decreasing) && all_diff_one_to_three
+}
+
 fn part1(file_path: &str) {
     let file = File::open(file_path).expect("Something went wrong reading the file");
     let reader = io::BufReader::new(file);
-    let mut heap1: BinaryHeap<i32> = BinaryHeap::new();
-    let mut heap2: BinaryHeap<i32> = BinaryHeap::new();
+    let mut sum = 0;
     for line in reader.lines() {
         let line = line.expect("Error reading line");
         if line.trim().is_empty() {
@@ -41,47 +47,16 @@ fn part1(file_path: &str) {
             .split_whitespace()
             .map(|s| s.parse().expect("parse error"))
             .collect();
-        if numbers.len() == 2 {
-            heap1.push(numbers[0]);
-            heap2.push(numbers[1]);
-        } else {
-            eprintln!("Invalid line: {}", line);
-            std::process::exit(1);
+        if is_safe(&numbers) {
+            sum += 1;
         }
     }
-    let mut sum = 0;
-    while let (Some(v1), Some(v2)) = (heap1.pop(), heap2.pop()) {
-        sum += (v2 - v1).abs();
-    }
-
     println!("{}", sum);
 }
 
 fn part2(file_path: &str) {
     let file = File::open(file_path).expect("Something went wrong reading the file");
     let reader = io::BufReader::new(file);
-    // First pass: count occurrences in second list
-    let mut second_numbers: HashMap<i32, i32> = HashMap::new();
-    for line in reader.lines() {
-        let line = line.expect("Error reading line");
-        if line.trim().is_empty() {
-            continue;
-        }
-        let numbers: Vec<i32> = line
-            .split_whitespace()
-            .map(|s| s.parse().expect("parse error"))
-            .collect();
-        if numbers.len() == 2 {
-            *second_numbers.entry(numbers[1]).or_insert(0) += 1;
-        } else {
-            eprintln!("Invalid line: {}", line);
-            std::process::exit(1);
-        }
-    }
-
-    // Second pass: calculate sum
-    let file = File::open(file_path).expect("Something went wrong reading the file");
-    let reader = io::BufReader::new(file);
     let mut sum = 0;
     for line in reader.lines() {
         let line = line.expect("Error reading line");
@@ -92,12 +67,19 @@ fn part2(file_path: &str) {
             .split_whitespace()
             .map(|s| s.parse().expect("parse error"))
             .collect();
-        if numbers.len() == 2 {
-            let first_num = numbers[0];
-            let count = second_numbers.get(&first_num).unwrap_or(&0);
-            sum += first_num * count;
+
+        if is_safe(&numbers) {
+            sum += 1;
+        } else {
+            for i in 0..numbers.len() {
+                let mut modified_numbers = numbers.clone();
+                modified_numbers.remove(i);
+                if is_safe(&modified_numbers) {
+                    sum += 1;
+                    break;
+                }
+            }
         }
     }
-
     println!("{}", sum);
 }
